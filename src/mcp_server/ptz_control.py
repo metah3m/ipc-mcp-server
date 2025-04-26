@@ -1,7 +1,9 @@
+import os
 from typing import Dict, Any
 import httpx
 import json
 from session_manager import SessionManager
+
 
 class PTZControl:
     def __init__(self, channel: int = 0):
@@ -14,7 +16,7 @@ class PTZControl:
             "focusCtrl": {"focus": 0},
             "irisCtrl": {"iris": 0}
         }
-    
+
     def set_pan_tilt(self, x: int = 0, y: int = 0):
         """设置平移和倾斜速度"""
         self.config["continuousPanTiltSpace"]["x"] = x
@@ -22,7 +24,7 @@ class PTZControl:
         return self
 
     def set_zoom(self, z: int = 0):
-        """设置变焦速度"""
+        """设置z轴速度"""
         self.config["continuousZoomSpace"]["z"] = z
         return self
 
@@ -44,6 +46,7 @@ class PTZControl:
     def get_config(self) -> dict:
         """获取当前配置"""
         return self.config
+
 
 class PTZClient:
     def __init__(self, host: str, session_manager: SessionManager):
@@ -99,7 +102,7 @@ class PTZClient:
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.host}{self.api_path}",
+                    url=self.host,
                     headers=self.session_manager.get_headers(),
                     json=payload
                 )
@@ -130,7 +133,7 @@ class PTZClient:
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.host}{self.api_path}",
+                    url=self.host,
                     headers=self.session_manager.get_headers(),
                     json=payload
                 )
@@ -161,7 +164,7 @@ class PTZClient:
 
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    f"{self.host}{self.api_path}",
+                    url=self.host,
                     headers=self.session_manager.get_headers(),
                     json=payload
                 )
@@ -170,4 +173,4 @@ class PTZClient:
                 return f"PTZ归零命令已发送. 响应: {json.dumps(result)}"
 
         except Exception as e:
-            return f"重置PTZ位置时发生错误: {str(e)}" 
+            return f"重置PTZ位置时发生错误: {str(e)}"

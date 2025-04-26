@@ -3,12 +3,15 @@ import asyncio
 import hashlib
 from typing import Optional
 
+initial_session = "1234567890"
+
+
 class SessionManager:
     def __init__(self, host: str, username: str = "admin", password: str = "admin"):
         self.host = host
         self.username = username
         self.password = password
-        self.session_id = None
+        self.session_id = initial_session
         self.keep_alive_task = None
         self.api_path = "/SDK/UNIV_API"
         self.headers = {
@@ -32,7 +35,7 @@ class SessionManager:
         try:
             # 生成随机数
             random = "310000"  # 这里可以改成真实的随机数生成
-            
+
             # 计算密码哈希
             pwd_hash = hashlib.md5(self.password.encode()).hexdigest()
             final_hash = hashlib.md5((pwd_hash + random).encode()).hexdigest()
@@ -55,16 +58,18 @@ class SessionManager:
             }
 
             async with httpx.AsyncClient() as client:
+                print(f"正在登录 {self.host}...")
                 response = await client.post(
-                    f"{self.host}{self.api_path}",
+                    url=self.host,
                     headers=self.headers,
                     json=payload
                 )
                 result = response.json()
                 if result.get("result") is True and "session" in result:
-                    self.session_id = result["session"]
-                    print(f"登录成功，会话ID: {self.session_id}")
+                    self.session_id = result["param"]["session"]
+                    print(f"登录成功，会话ID: {self.session_id} {result}")
                     return True
+                print(f"登录失败: {result}")
                 return False
         except Exception as e:
             print(f"登录失败: {str(e)}")
@@ -100,7 +105,7 @@ class SessionManager:
                     if not result.get("result"):
                         print("会话已过期，尝试重新登录")
                         await self.login()
-                
+
                 await asyncio.sleep(30)  # 每30秒发送一次保活请求
             except Exception as e:
                 print(f"保活失败: {str(e)}")
@@ -120,4 +125,4 @@ class SessionManager:
             try:
                 await self.keep_alive_task
             except asyncio.CancelledError:
-                pass 
+                pass
