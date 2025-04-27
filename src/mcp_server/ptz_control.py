@@ -1,8 +1,6 @@
-import os
-from typing import Dict, Any
 import httpx
 import json
-from session_manager import SessionManager
+from mcp_server.session_manager import SessionManager
 
 
 class PTZControl:

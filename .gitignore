@@ -35,4 +35,9 @@ ENV/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db __pycache__/
+build/
+*.egg-info/
+mcp-server.spec
+uv.lock
+

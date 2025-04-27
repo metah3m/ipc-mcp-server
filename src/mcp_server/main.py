@@ -1,14 +1,10 @@
-from session_manager import SessionManager
-from ptz_control import PTZClient
+from mcp_server.session_manager import SessionManager
+from mcp_server.ptz_control import PTZClient
 import asyncio
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, Request
 from fastapi_mcp import FastApiMCP
-from sse_starlette.sse import EventSourceResponse
-from typing import AsyncGenerator
-import json
-import time
 import os
 
 # 设置日志
@@ -17,6 +13,8 @@ logger = logging.getLogger(__name__)
 
 # 配置参数
 BACKEND_BASE_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8002")
+USER_NAME = os.getenv("USER_NAME", "admin")
+PASSWORD = os.getenv("PASSWORD", "admin")
 TIMEOUT = float(os.getenv("REQUEST_TIMEOUT", "5.0"))
 MAX_RETRIES = int(os.getenv("MAX_RETRIES", "3"))
 
@@ -33,7 +31,7 @@ app.add_middleware(
 )
 
 # 创建会话管理器和PTZ客户端
-session_manager = SessionManager(BACKEND_BASE_URL)
+session_manager = SessionManager(BACKEND_BASE_URL, USER_NAME, PASSWORD)
 ptz_client = PTZClient(BACKEND_BASE_URL, session_manager)
 
 

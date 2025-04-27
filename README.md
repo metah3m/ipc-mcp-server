@@ -24,47 +24,24 @@
 确保你的系统已安装 Python 3.8 或更高版本：
 
 ```bash
+# 安装uv
+pip3 install uv
+# 创建虚拟环境
+uv venv
+# 激活虚拟环境
+source .venv/bin/activate
 # 安装依赖
-pip install -e .
+uv pip install .
 ```
 
 ## 运行服务器
 
 ```bash
-python main.py
+python3 -m src.mcp_server.main
 ```
-
-服务器将在 http://localhost:8000 上启动。
-
-## 项目结构
-
-- `main.py`: 主程序入口，包含 MCP 服务器初始化和路由定义
-- `session_manager.py`: 会话管理模块，处理登录和会话保活
-- `ptz_control.py`: PTZ 控制模块，实现摄像头的各种控制功能
-
-## API 示例
-
-### PTZ 控制
+如果是模拟测试，先运行 mock_ipc.py
 
 ```bash
-curl -X POST "http://localhost:8000/SDK/UNIV_API%20HTTP/1.1" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "service": "ptz",
-       "method": "control",
-       "params": {
-         "pan": 50,
-         "tilt": 30,
-         "zoom": 0
-       }
-     }'
+python3 -m src.mcp_server.mock_ipc
 ```
 
-### 响应示例
-
-```json
-{
-    "result": "success",
-    "session": "550e8400-e29b-41d4-a716-446655440000"
-}
-```

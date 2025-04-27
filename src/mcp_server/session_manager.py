@@ -1,7 +1,6 @@
 import httpx
 import asyncio
 import hashlib
-from typing import Optional
 
 initial_session = "1234567890"
 
