@@ -1,3 +1,4 @@
+import asyncio
 import httpx
 import json
 from mcp_server.session_manager import SessionManager
@@ -9,10 +10,6 @@ class PTZControl:
         self.config = {
             "channel": channel,
             "continuousPanTiltSpace": {"x": 0, "y": 0},
-            "continuousZoomSpace": {"z": 0},
-            "autoPanCtrl": {"autoPan": 0},
-            "focusCtrl": {"focus": 0},
-            "irisCtrl": {"iris": 0}
         }
 
     def set_pan_tilt(self, x: int = 0, y: int = 0):
@@ -60,9 +57,10 @@ class PTZClient:
         auto_pan_speed: int = 0,
         focus_speed: int = 0,
         iris_speed: int = 0,
-        channel: int = 0
+        channel: int = 0,
+        time: int = 1,
     ) -> str:
-        """控制PTZ摄像头的所有参数"""
+        """控制PTZ摄像头并在指定时间后发送停止命令"""
         if not self.session_manager.session_id:
             return "未登录或会话已过期"
 
@@ -79,68 +77,96 @@ class PTZClient:
                 if not -100 <= value <= 100:
                     return f"{name} 必须在 -100 到 100 之间"
 
-            # 构建PTZ配置
+            # 构建初始PTZ配置
             ptz = PTZControl(channel)
-            ptz.set_pan_tilt(x_speed, y_speed)
-            ptz.set_zoom(zoom_speed)
-            ptz.set_auto_pan(auto_pan_speed)
-            ptz.set_focus(focus_speed)
-            ptz.set_iris(iris_speed)
+            if x_speed or y_speed:
+                ptz.set_pan_tilt(x_speed, y_speed)
 
-            # 构建请求数据
+            print(f"PTZ配置: {ptz.get_config()}")
+            # 构建初始请求
             payload = {
                 "session": self.session_manager.session_id,
                 "id": 2,
-                "call": {
-                    "service": "ptz",
-                    "method": "setPTZCmd"
-                },
+                "call": {"service": "ptz", "method": "setPTZCmd"},
                 "params": ptz.get_config()
             }
 
+            print(f"请求: {json.dumps(payload)}")
+
             async with httpx.AsyncClient() as client:
-                response = await client.post(
+                # 发送初始运动请求
+                motion_resp = await client.post(
                     url=self.host,
                     headers=self.session_manager.get_headers(),
                     json=payload
                 )
-                response.raise_for_status()
-                result = response.json()
-                return f"PTZ控制命令已发送 - X:{x_speed} Y:{y_speed} Z:{zoom_speed} 自动旋转:{auto_pan_speed} 聚焦:{focus_speed} 光圈:{iris_speed}. 响应: {json.dumps(result)}"
+                motion_resp.raise_for_status()
+                motion_result = f"运动请求成功 响应: {json.dumps(motion_resp.json())}"
+                print(f"运动请求成功 响应: {json.dumps(motion_resp.json())}")
+                # 等待指定时间
+                await asyncio.sleep(time)
+
+                # 构建停止配置
+                stop_ptz = PTZControl(channel)
+                stop_ptz.set_pan_tilt(0, 0)
+                print(f"停止配置: {stop_ptz.get_config()}")
+                # 构建停止请求
+                stop_payload = {
+                    "session": self.session_manager.session_id,
+                    "id": 2,
+                    "call": {"service": "ptz", "method": "setPTZCmd"},
+                    "params": stop_ptz.get_config()
+                }
+
+                print(f"停止配置: {stop_ptz.get_config()}")
+
+                # 发送停止请求
+                try:
+                    stop_resp = await client.post(
+                        url=self.host,
+                        headers=self.session_manager.get_headers(),
+                        json=stop_payload
+                    )
+                    stop_resp.raise_for_status()
+                    stop_result = f"停止请求成功 响应: {json.dumps(stop_resp.json())}"
+                except Exception as e:
+                    stop_result = f"停止请求失败: {str(e)}"
+
+                return f"{motion_result}\n{stop_result}"
 
         except Exception as e:
             return f"控制PTZ时发生错误: {str(e)}"
 
-    async def reboot(self, channel: int = 0) -> str:
-        """重启PTZ设备"""
-        if not self.session_manager.session_id:
-            return "未登录或会话已过期"
+        async def reboot(self, channel: int = 0) -> str:
+            """重启PTZ设备"""
+            if not self.session_manager.session_id:
+                return "未登录或会话已过期"
 
-        try:
-            payload = {
-                "session": self.session_manager.session_id,
-                "id": 2,
-                "call": {
-                    "service": "ptz",
-                    "method": "rebootPTDevice"
-                },
-                "params": {
-                    "channel": channel
+            try:
+                payload = {
+                    "session": self.session_manager.session_id,
+                    "id": 2,
+                    "call": {
+                        "service": "ptz",
+                        "method": "rebootPTDevice"
+                    },
+                    "params": {
+                        "channel": channel
+                    }
                 }
-            }
 
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    url=self.host,
-                    headers=self.session_manager.get_headers(),
-                    json=payload
-                )
-                response.raise_for_status()
-                result = response.json()
-                return f"PTZ重启命令已发送. 响应: {json.dumps(result)}"
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(
+                        url=self.host,
+                        headers=self.session_manager.get_headers(),
+                        json=payload
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+                    return f"PTZ重启命令已发送. 响应: {json.dumps(result)}"
 
-        except Exception as e:
-            return f"重启PTZ时发生错误: {str(e)}"
+            except Exception as e:
+                return f"重启PTZ时发生错误: {str(e)}"
 
     async def reset_position(self, channel: int = 0) -> str:
         """重置PTZ位置到零坐标"""
